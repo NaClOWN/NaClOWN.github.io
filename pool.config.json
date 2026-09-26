@@ -1,0 +1,37 @@
+{
+  "_说明": "卡池展示设置。改完这个文件提交（或在 GitHub 网页上直接编辑）就会生效，不需要重新构建。",
+  "_rate说明": "rarities[].weight 是相对权重，不用凑成 100，程序会自己归一化。把 weight 改成 0 就等于关掉这一档。",
+  "_rarity说明": "categoryRarity 把类别映射到星级；卡池里出现没写过的类别时，用 defaultRarity 兜底。",
+
+  "title": "抽取灵感",
+  "subtitle": "单抽或十连抽，看看这一发能抽到什么。",
+  "poolUrl": "抽取灵感.json",
+  "configUrl": "pool.config.json",
+
+  "rarities": [
+    { "stars": 1, "name": "杂念", "weight": 46, "color": "#8b93a7" },
+    { "stars": 2, "name": "日常", "weight": 24, "color": "#3fd0a8" },
+    { "stars": 3, "name": "灵光", "weight": 16, "color": "#5b8cff" },
+    { "stars": 4, "name": "奇想", "weight": 9,  "color": "#c06cff" },
+    { "stars": 5, "name": "天启", "weight": 5,  "color": "#ffb340" }
+  ],
+
+  "categoryRarity": {
+    "负面情感": 1,
+    "正面情感": 1,
+    "普通灵感": 2,
+    "走神": 2,
+    "平静": 3,
+    "遗忘": 3,
+    "绝妙的灵感": 3,
+    "ph灵感": 3,
+    "故事灵感": 4,
+    "游戏灵感": 5,
+    "高度抽象": 5,
+    "梦中线": 5
+  },
+
+  "defaultRarity": 3,
+  "specialCategories": ["高度抽象", "梦中线"],
+  "tenPullGuarantee": 3
+}
