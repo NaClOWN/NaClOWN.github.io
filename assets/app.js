@@ -11,26 +11,14 @@
     poolUrl: '抽取灵感.json',
     configUrl: 'pool.config.json',
     rarities: [
-      { stars: 1, name: '杂念', weight: 46, color: '#8b93a7' },
-      { stars: 2, name: '日常', weight: 24, color: '#3fd0a8' },
-      { stars: 3, name: '灵光', weight: 16, color: '#5b8cff' },
-      { stars: 4, name: '奇想', weight: 9, color: '#c06cff' },
-      { stars: 5, name: '天启', weight: 5, color: '#ffb340' }
+      { stars: 1, name: '杂念', probability: 46, color: '#8b93a7' },
+      { stars: 2, name: '日常', probability: 24, color: '#3fd0a8' },
+      { stars: 3, name: '灵光', probability: 16, color: '#5b8cff' },
+      { stars: 4, name: '奇想', probability: 9, color: '#c06cff' },
+      { stars: 5, name: '天启', probability: 5, color: '#ffb340' }
     ],
-    categoryRarity: {
-      '负面情感': 1,
-      '正面情感': 1,
-      '普通灵感': 2,
-      '走神': 2,
-      '平静': 3,
-      '遗忘': 3,
-      '绝妙的灵感': 3,
-      'ph灵感': 3,
-      '故事灵感': 4,
-      '游戏灵感': 5,
-      '高度抽象': 5,
-      '梦中线': 5
-    },
+    /* 可选兜底：条目自己没写稀有度时，才按类别找星级 */
+    categoryRarity: {},
     defaultRarity: 3,
     specialCategories: ['高度抽象', '梦中线'],
     tenPullGuarantee: 3
@@ -70,6 +58,11 @@
     return s;
   }
 
+  /* 条目没写「类别：」前缀时返回空串，这时卡面上的标签改用档位名 */
+  function cardCategory(card) {
+    return (card.category && card.category !== '未分类') ? card.category : '';
+  }
+
   function reducedMotion() {
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
@@ -106,25 +99,59 @@
 
   /* ============ 解析卡池 ============ */
 
-  function parseEntry(raw) {
-    var text = String(raw).replace(/\r\n/g, '\n').trim();
-    if (!text) return null;
-    var category, body;
-    var m = text.match(/^([^：:\n]{1,10})[：:]([\s\S]*)$/);
-    if (m) {
-      category = m[1].trim();
-      body = m[2].trim();
-    } else if (text.indexOf('你本来是想探索') === 0) {
-      category = '走神';
-      body = text;
-    } else if (text.indexOf('绝妙的灵感！') === 0) {
-      category = '遗忘';
-      body = text;
-    } else {
-      category = '未分类';
-      body = text;
+  var TEXT_KEYS = ['灵感', 'text', 'body', '内容', '正文'];
+  var CAT_KEYS = ['类别', 'category', '分类'];
+  var RARITY_KEYS = ['稀有度', 'rarity', '星级', 'stars', '星'];
+
+  function firstKey(obj, keys) {
+    for (var i = 0; i < keys.length; i++) {
+      var v = obj[keys[i]];
+      if (v !== undefined && v !== null && v !== '') return v;
     }
-    return { category: category, body: body, key: category + '\u0000' + body };
+    return undefined;
+  }
+
+  function splitPrefix(text) {
+    /* 形如「类别：正文」。类别最多 20 字，且不能带句读符号或括号，
+       免得把正文里出现的冒号（比如「（灵感来源：xxx）」）误当成类别分隔符。 */
+    var m = text.match(/^([^：:\n]{1,20})[：:]([\s\S]*)$/);
+    if (m && !/[。，、！？；…（）()]/.test(m[1])) {
+      return { category: m[1].trim(), body: m[2].trim() };
+    }
+    if (text.indexOf('你本来是想探索') === 0) return { category: '走神', body: text };
+    if (text.indexOf('绝妙的灵感！') === 0) return { category: '遗忘', body: text };
+    return { category: '未分类', body: text };
+  }
+
+  /* 支持两种写法：
+     1) "故事灵感：一个只有心脏处是不透明的人。"            ← 没写稀有度，用 defaultRarity
+     2) { "稀有度": 5, "灵感": "游戏灵感：切水果，但你控制水果" }  ← 条目自带稀有度 */
+  function parseEntry(raw) {
+    var text, explicitCat, forced;
+    if (raw && typeof raw === 'object') {
+      text = firstKey(raw, TEXT_KEYS);
+      explicitCat = firstKey(raw, CAT_KEYS);
+      forced = firstKey(raw, RARITY_KEYS);
+      if (text === undefined) return null;
+      text = String(text);
+    } else {
+      text = String(raw);
+    }
+    text = text.replace(/\r\n/g, '\n').trim();
+    if (!text) return null;
+
+    var parts = splitPrefix(text);
+    var category = parts.category;
+    var body = parts.body;
+    if (explicitCat !== undefined) {
+      category = String(explicitCat).trim();
+      var again = splitPrefix(body);
+      if (again.category === category) body = again.body;   /* 正文里重复的前缀去掉 */
+    }
+
+    var card = { category: category, body: body, key: category + '\u0000' + body };
+    if (forced !== undefined) card.forcedRarity = forced;
+    return card;
   }
 
   function buildCards(list) {
@@ -132,17 +159,7 @@
     var seen = {};
     var out = [];
     list.forEach(function (raw) {
-      var card = null;
-      if (raw && typeof raw === 'object') {
-        var text = String(raw.text || raw.body || raw['内容'] || '').replace(/\r\n/g, '\n').trim();
-        if (!text) return;
-        var category = String(raw.category || raw['类别'] || '未分类').trim();
-        card = { category: category, body: text, key: category + '\u0000' + text };
-        var forced = raw.rarity || raw['星级'];
-        if (forced) card.forcedRarity = Number(forced);
-      } else {
-        card = parseEntry(raw);
-      }
+      var card = parseEntry(raw);
       if (!card || seen[card.key]) return;
       seen[card.key] = true;
 
@@ -155,8 +172,19 @@
     return out;
   }
 
+  /* 条目自带稀有度优先（可写数字，也可以写档位名），其次是类别映射，最后是 defaultRarity */
   function rarityOf(card) {
-    if (card.forcedRarity) return card.forcedRarity;
+    if (card.forcedRarity !== undefined) {
+      var n = Number(card.forcedRarity);
+      if (isFinite(n)) return n;
+      var want = String(card.forcedRarity).trim();
+      var defs = state.config.rarities || [];
+      for (var i = 0; i < defs.length; i++) {
+        if (String(defs[i].name).trim() === want) return Number(defs[i].stars);
+      }
+      var digits = want.match(/\d+/);
+      if (digits) return Number(digits[0]);
+    }
     var map = state.config.categoryRarity || {};
     if (Object.prototype.hasOwnProperty.call(map, card.category)) {
       return Number(map[card.category]);
@@ -175,6 +203,18 @@
     });
   }
 
+  /* pool.config.json 里每个稀有度的概率，字段名随便挑一个写都认 */
+  function readProbability(def) {
+    var keys = ['probability', '概率', 'chance', 'weight'];
+    for (var i = 0; i < keys.length; i++) {
+      var v = def[keys[i]];
+      if (v === undefined || v === null || v === '') continue;
+      var n = parseFloat(v);
+      if (isFinite(n)) return Math.max(0, n);
+    }
+    return 1;
+  }
+
   function buildTable() {
     var defs = {};
     (state.config.rarities || []).forEach(function (d) { defs[Number(d.stars)] = d; });
@@ -182,12 +222,14 @@
     var list = Object.keys(state.groups).map(Number).sort(function (a, b) { return a - b; });
     var entries = list.map(function (r) {
       var d = defs[r] || {};
-      var w = d.weight === undefined ? 1 : Number(d.weight);
+      if (!defs[r]) {
+        console.warn('稀有度 ' + r + ' 没有在 pool.config.json 的 rarities 里配置概率，暂时按权重 1 参与抽卡。');
+      }
       return {
         stars: r,
         name: d.name || (r + '★'),
         color: d.color || '#5b8cff',
-        weight: Math.max(0, isFinite(w) ? w : 1),
+        weight: readProbability(d),
         count: state.groups[r].length,
         chance: 0
       };
@@ -263,9 +305,10 @@
     var starEl = document.createElement('span');
     starEl.className = 'stars';
     starEl.textContent = stars(card.stars);
+    var label = cardCategory(card);
     var badge = document.createElement('span');
     badge.className = 'badge';
-    badge.textContent = card.category;
+    badge.textContent = label || tier.name;
     head.appendChild(starEl);
     head.appendChild(badge);
 
@@ -276,7 +319,7 @@
     var foot = document.createElement('div');
     foot.className = 'card-foot';
     var tierName = document.createElement('span');
-    tierName.textContent = tier.name;
+    tierName.textContent = label ? tier.name : '';
     var hint = document.createElement('span');
     hint.textContent = opts.hint || '';
     foot.appendChild(tierName);
@@ -495,7 +538,8 @@
       list.forEach(function (card) {
         var got = !!state.collectedSet[card.id];
         var item = el('div', 'book-item' + (got ? '' : ' locked'));
-        item.appendChild(el('span', 'cat', card.category));
+        var cat = cardCategory(card);
+        if (cat) item.appendChild(el('span', 'cat', cat));
         item.appendChild(el('span', null, got ? card.body : '？？？'));
         if (got) {
           item.style.cursor = 'pointer';
@@ -533,7 +577,7 @@
 
     var head = el('div', 'card-head');
     head.appendChild(el('span', 'stars', stars(card.stars)));
-    head.appendChild(el('span', 'badge', card.category));
+    head.appendChild(el('span', 'badge', cardCategory(card) || tier.name));
     box.appendChild(head);
     box.appendChild(el('div', 'body', card.body));
     box.appendChild(el('div', 'card-foot', tier.name));
