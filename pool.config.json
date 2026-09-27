@@ -11,13 +11,13 @@
 
   "rarities": [
     { "stars": 1, "name": "杂念", "probability": 46, "color": "#8b93a7" },
-    { "stars": 2, "name": "日常", "probability": 24, "color": "#3fd0a8" },
+    { "stars": 2, "name": "日常", "probability": 23.5, "color": "#3fd0a8" },
     { "stars": 3, "name": "灵光", "probability": 16, "color": "#5b8cff" },
     { "stars": 4, "name": "奇想", "probability": 9,  "color": "#c06cff" },
-    { "stars": 5, "name": "天启", "probability": 5,  "color": "#ffb340" }
+    { "stars": 5, "name": "天启", "probability": 5,  "color": "#ffb340" },
+    { "stars": 6, "name": "神明", "probability": 0.5,  "color": "#ff2a00" }
   ],
 
   "defaultRarity": 3,
-  "specialCategories": ["高度抽象", "梦中线"],
   "tenPullGuarantee": 3
 }
