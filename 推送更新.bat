@@ -27,7 +27,7 @@ if not defined GIT (
 rem 这台机器连 github.com 的 HTTPS 被阻断，所以走 SSH 的 443 端口
 set "GIT_SSH_COMMAND=C:/Windows/System32/OpenSSH/ssh.exe -i C:/Users/hp/.ssh/id_ed25519 -o IdentitiesOnly=yes -o HostName=ssh.github.com -o Port=443 -o StrictHostKeyChecking=accept-new"
 
-echo [1/4] 检查卡池文件
+echo [1/5] 检查卡池文件
 if defined NODE (
   "%NODE%" "tools\check-pool.js"
   if errorlevel 1 (
@@ -42,18 +42,30 @@ if defined NODE (
 )
 
 echo.
-echo [2/4] 暂存改动
+echo [2/5] 暂存改动
 "%GIT%" add -A
 "%GIT%" status --short
 
 echo.
-echo [3/4] 提交
+echo [3/5] 提交
 set "MSG=%~1"
 if "%MSG%"=="" set "MSG=更新卡池"
 "%GIT%" commit -m "%MSG%"
 
 echo.
-echo [4/4] 推送
+echo [4/5] 同步远程改动（防止你刚在网页上改过东西）
+"%GIT%" pull --rebase
+if errorlevel 1 (
+  echo.
+  echo 同步失败：远程的改动和本地冲突了，需要手动合并。
+  echo 把这个窗口里的内容发给 Codex，让它帮你合。
+  echo.
+  pause
+  exit /b 1
+)
+
+echo.
+echo [5/5] 推送
 "%GIT%" push
 if errorlevel 1 (
   echo.
