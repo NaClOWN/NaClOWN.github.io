@@ -107,10 +107,10 @@
   }
 
   function splitPrefix(text) {
-    /* 卡池条目可以写成「标签：正文」。标签只用于内部识别（特殊卡外观），
-       界面上不显示，所以这里把它从正文里切掉。
+  /* 条目的「标签：正文」写法里，标签会被识别出来，用于判断特殊卡外观；
+       但正文照原样显示（标签也一起显示）。
        判断条件：标签不超过 20 字、不带句读符号、括号必须闭合，
-       这样「（灵感来源：xxx）」这种正文里的冒号就不会被误切。 */
+       这样「（灵感来源：xxx）」这种正文里的冒号就不会被误判成标签。 */
     var m = text.match(/^([^：:\n]{1,20})[：:]([\s\S]*)$/);
     if (m) {
       var head = m[1];
@@ -144,14 +144,11 @@
 
     var parts = splitPrefix(text);
     var category = parts.category;
-    var body = parts.body;
-    if (explicitCat !== undefined) {
-      category = String(explicitCat).trim();
-      var again = splitPrefix(body);
-      if (again.category === category) body = again.body;   /* 正文里重复的前缀去掉 */
-    }
+    if (explicitCat !== undefined) category = String(explicitCat).trim();
 
-    var card = { category: category, body: body, key: category + '\u0000' + body };
+    /* body 用完整原文（含「标签：」）；key 仍然按「标签 + 去掉标签的正文」算，
+       这样改显示不会让已有的图鉴收集记录失效。 */
+    var card = { category: category, body: text, key: category + '\u0000' + parts.body };
     if (forced !== undefined) card.forcedRarity = forced;
     return card;
   }
