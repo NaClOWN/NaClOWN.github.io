@@ -58,11 +58,6 @@
     return s;
   }
 
-  /* 条目没写「类别：」前缀时返回空串，这时卡面上的标签改用档位名 */
-  function cardCategory(card) {
-    return (card.category && card.category !== '未分类') ? card.category : '';
-  }
-
   function reducedMotion() {
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
@@ -112,11 +107,18 @@
   }
 
   function splitPrefix(text) {
-    /* 形如「类别：正文」。类别最多 20 字，且不能带句读符号或括号，
-       免得把正文里出现的冒号（比如「（灵感来源：xxx）」）误当成类别分隔符。 */
+    /* 卡池条目可以写成「标签：正文」。标签只用于内部识别（特殊卡外观），
+       界面上不显示，所以这里把它从正文里切掉。
+       判断条件：标签不超过 20 字、不带句读符号、括号必须闭合，
+       这样「（灵感来源：xxx）」这种正文里的冒号就不会被误切。 */
     var m = text.match(/^([^：:\n]{1,20})[：:]([\s\S]*)$/);
-    if (m && !/[。，、！？；…（）()]/.test(m[1])) {
-      return { category: m[1].trim(), body: m[2].trim() };
+    if (m) {
+      var head = m[1];
+      var opens = (head.match(/[（(]/g) || []).length;
+      var closes = (head.match(/[）)]/g) || []).length;
+      if (!/[。，、！？；…]/.test(head) && opens === closes) {
+        return { category: head.trim(), body: m[2].trim() };
+      }
     }
     if (text.indexOf('你本来是想探索') === 0) return { category: '走神', body: text };
     if (text.indexOf('绝妙的灵感！') === 0) return { category: '遗忘', body: text };
@@ -302,32 +304,25 @@
 
     var head = document.createElement('div');
     head.className = 'card-head';
-    var starEl = document.createElement('span');
-    starEl.className = 'stars';
-    starEl.textContent = stars(card.stars);
-    var label = cardCategory(card);
-    var badge = document.createElement('span');
-    badge.className = 'badge';
-    badge.textContent = label || tier.name;
-    head.appendChild(starEl);
-    head.appendChild(badge);
+    var rarity = document.createElement('span');
+    rarity.className = 'rarity';
+    rarity.textContent = stars(card.stars) + ' ' + tier.name;
+    head.appendChild(rarity);
 
     var body = document.createElement('p');
     body.className = 'body';
     body.textContent = card.body;
 
-    var foot = document.createElement('div');
-    foot.className = 'card-foot';
-    var tierName = document.createElement('span');
-    tierName.textContent = label ? tier.name : '';
-    var hint = document.createElement('span');
-    hint.textContent = opts.hint || '';
-    foot.appendChild(tierName);
-    foot.appendChild(hint);
-
     front.appendChild(head);
     front.appendChild(body);
-    front.appendChild(foot);
+    if (opts.hint) {
+      var foot = document.createElement('div');
+      foot.className = 'card-foot';
+      var hint = document.createElement('span');
+      hint.textContent = opts.hint;
+      foot.appendChild(hint);
+      front.appendChild(foot);
+    }
     inner.appendChild(back);
     inner.appendChild(front);
     root.appendChild(inner);
@@ -381,7 +376,7 @@
     ui.cards.className = 'cards ' + (single ? 'single' : 'ten');
 
     var nodes = cardsList.map(function (card) {
-      var node = makeCard(card, { clickable: !single, hint: single ? '' : '点开' });
+      var node = makeCard(card, { clickable: !single, hint: single ? '' : '点卡片看全文' });
       ui.cards.appendChild(node);
       return node;
     });
@@ -538,8 +533,6 @@
       list.forEach(function (card) {
         var got = !!state.collectedSet[card.id];
         var item = el('div', 'book-item' + (got ? '' : ' locked'));
-        var cat = cardCategory(card);
-        if (cat) item.appendChild(el('span', 'cat', cat));
         item.appendChild(el('span', null, got ? card.body : '？？？'));
         if (got) {
           item.style.cursor = 'pointer';
@@ -576,11 +569,9 @@
     box.style.setProperty('--c', tier.color);
 
     var head = el('div', 'card-head');
-    head.appendChild(el('span', 'stars', stars(card.stars)));
-    head.appendChild(el('span', 'badge', cardCategory(card) || tier.name));
+    head.appendChild(el('span', 'rarity', stars(card.stars) + ' ' + tier.name));
     box.appendChild(head);
     box.appendChild(el('div', 'body', card.body));
-    box.appendChild(el('div', 'card-foot', tier.name));
 
     openModal('灵感详情', box);
   }
