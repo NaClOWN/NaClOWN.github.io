@@ -39,6 +39,28 @@
 
 也可以完全不开本地环境：在 GitHub 仓库页面点开 `抽取灵感.json`，点铅笔图标改完 `Commit changes`，稍等片刻线上就更新了。
 
+### 两种更新方式
+
+**方式一：在 GitHub 网页上直接改（推荐，什么都不用装）**
+
+1. 打开 https://github.com/NaClOWN/NaClOWN.github.io
+2. 点开 `抽取灵感.json`，右上角铅笔图标进入编辑
+3. 改完往下拉，填一句说明，点 `Commit changes`
+4. 过一分钟刷新 https://naclown.github.io/ 就能看到
+
+卡池数据是 `no-store` 抓取的，所以改 JSON **不用**清浏览器缓存；只有改 `assets/` 里的代码才需要（见下面）。
+
+**方式二：本地改完双击 `推送更新.bat`**
+
+1. 在这个文件夹里改好文件
+2. 双击 `推送更新.bat`（也可以把说明当参数传：`推送更新.bat "加了三条游戏灵感"`）
+   - 它会先跑 `tools/check-pool.js` 检查卡池 JSON 有没有写错
+   - 然后自动 `git add` / `commit` / `push`
+
+想先单独检查卡池可以自己跑：`node tools/check-pool.js`
+
+> 这台机器连 `github.com` 的 HTTPS 被网络阻断，所以脚本里内置了走 SSH 443 端口的绕行方式（用的密钥是 `C:\Users\hp\.ssh\id_ed25519`）。如果哪天密钥被删了，重新生成一把并加到 GitHub 即可，或者直接用方式一。
+
 ### 条目的写法
 
 一条一个对象，两个字段：
