@@ -76,6 +76,10 @@
 
 ## 部署到 GitHub Pages
 
+> 改了 `assets/` 里的代码（不是卡池数据）之后，记得把 `index.html` 里两个资源的
+> `?v=数字` 同时加一（比如 `?v=3`），这样浏览器不会继续用旧缓存的 JS/CSS。
+> 卡池数据是 `no-store` 抓取的，改 JSON 不需要动这个版本号。
+
 1. 在 GitHub 上新建一个 **Public** 仓库，例如 `inspiration-gacha`。
 2. 把本项目所有文件推上去：
 
